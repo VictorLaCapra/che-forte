@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: yt-downloader
+    env: python
+    buildCommand: ""
+    startCommand: "python main.py"
+    plan: free
+    envVars: []
+    autoDeploy: true
