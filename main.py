@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, Response, jsonify
 import yt_dlp
 import uuid
 import os
@@ -6,18 +6,18 @@ import tempfile
 
 app = Flask(__name__)
 
-# ✅ Cookie support
+# Cookie support
 temp_dir = tempfile.gettempdir()
-cookie_file = "/opt/render/project/src/cookies.txt"
+cookie_file = os.path.join(temp_dir, "cookies.txt")
 
-# Verifica che il file cookies.txt esista
-if os.path.exists(cookie_file):
+if os.path.exists("cookies.txt"):
+    with open("cookies.txt", "r", encoding="utf-8") as f:
+        cookie_data = f.read()
+    with open(cookie_file, "w", encoding="utf-8") as f:
+        f.write(cookie_data)
     print("✅ Il file 'cookies.txt' è stato trovato e verrà utilizzato.")
-    with open(cookie_file, "r", encoding="utf-8") as f:
-        print("📂 Contenuto di cookies.txt:")
-        print(f.read())
 else:
-    print("❌ ERRORE: Il file 'cookies.txt' non è stato trovato. Assicurati che sia nella directory giusta.")
+    print("❌ File 'cookies.txt' non trovato.")
 
 # 🔍 SEARCH
 @app.route('/search', methods=['POST'])
@@ -53,7 +53,7 @@ def search():
     except Exception as e:
         return {"error": str(e)}, 500
 
-# ▶️ STREAM
+# ▶️ STREAM (con Response per Streaming Progressivo)
 @app.route('/stream', methods=['POST'])
 def stream_audio():
     data = request.get_json()
@@ -62,28 +62,25 @@ def stream_audio():
     if not url:
         return {"error": "URL mancante"}, 400
 
-    filename = f"{uuid.uuid4()}.mp3"
     ydl_opts = {
         'format': 'bestaudio/best',
-        'outtmpl': filename,
         'cookiefile': cookie_file,
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
         'quiet': True
     }
 
-    try:
+    def generate():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-        return send_file(filename, mimetype='audio/mpeg', as_attachment=False)
-    except Exception as e:
-        return {"error": str(e)}, 500
-    finally:
-        if os.path.exists(filename):
-            os.remove(filename)
+            result = ydl.extract_info(url, download=False)
+            audio_url = result['url']
+        
+        # Scarica i dati in streaming e inviali al client progressivamente
+        import requests
+        with requests.get(audio_url, stream=True) as r:
+            for chunk in r.iter_content(chunk_size=1024):
+                if chunk:
+                    yield chunk
+
+    return Response(generate(), content_type='audio/mpeg')
 
 # ⬇️ DOWNLOAD
 @app.route('/download', methods=['POST'])
@@ -117,7 +114,7 @@ def download_audio():
         if os.path.exists(filename):
             os.remove(filename)
 
-# 💽 PLAYLIST (elenco brani da una playlist YouTube)
+# 💽 PLAYLIST
 @app.route('/playlist', methods=['POST'])
 def playlist():
     data = request.get_json()
