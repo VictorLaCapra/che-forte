@@ -25,17 +25,20 @@ def search():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"ytsearch10:{query}", download=False)
             for entry in info['entries']:
+                entry_type = "playlist" if entry.get("ie_key") == "YoutubePlaylist" else "video"
+                url = f"https://www.youtube.com/watch?v={entry.get('id')}" if entry_type == "video" else f"https://www.youtube.com/playlist?list={entry.get('id')}"
                 results.append({
                     "title": entry.get("title"),
-                    "url": f"https://www.youtube.com/watch?v={entry.get('id')}",
+                    "url": url,
                     "id": entry.get("id"),
-                    "thumbnail": entry.get("thumbnail"),
+                    "type": entry_type,
+                    "thumbnail": entry.get("thumbnail")
                 })
         return jsonify(results)
     except Exception as e:
         return {"error": str(e)}, 500
 
-# ▶️ STREAM (riproduzione diretta)
+# ▶️ STREAM
 @app.route('/stream', methods=['POST'])
 def stream_audio():
     data = request.get_json()
@@ -66,7 +69,7 @@ def stream_audio():
         if os.path.exists(filename):
             os.remove(filename)
 
-# ⬇️ DOWNLOAD (come prima, ma separato)
+# ⬇️ DOWNLOAD
 @app.route('/download', methods=['POST'])
 def download_audio():
     data = request.get_json()
@@ -96,6 +99,39 @@ def download_audio():
     finally:
         if os.path.exists(filename):
             os.remove(filename)
+
+# 💽 PLAYLIST (elenco brani da una playlist YouTube)
+@app.route('/playlist', methods=['POST'])
+def playlist():
+    data = request.get_json()
+    url = data.get("url")
+
+    if not url:
+        return {"error": "URL mancante"}, 400
+
+    ydl_opts = {
+        'quiet': True,
+        'extract_flat': True,
+        'skip_download': True,
+    }
+
+    tracks = []
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            if info.get('_type') == 'playlist':
+                for entry in info['entries']:
+                    tracks.append({
+                        "title": entry.get("title"),
+                        "url": f"https://www.youtube.com/watch?v={entry.get('id')}",
+                        "id": entry.get("id"),
+                        "thumbnail": entry.get("thumbnail")
+                    })
+            else:
+                return {"error": "Il link non è una playlist"}, 400
+        return jsonify(tracks)
+    except Exception as e:
+        return {"error": str(e)}, 500
 
 # Avvia il server su Render
 app.run(host='0.0.0.0', port=10000)
