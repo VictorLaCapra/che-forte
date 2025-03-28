@@ -1,9 +1,12 @@
 services:
   - type: web
-    name: yt-downloader
+    name: che-forte
     env: python
-    buildCommand: ""
+    buildCommand: "pip install -r requirements.txt"
     startCommand: "python main.py"
-    plan: free
-    envVars: []
-    autoDeploy: true
+    envVars:
+      - key: YTDLP_COOKIES
+        value: "/opt/render/project/src/cookies.txt"
+    files:
+      - path: /opt/render/project/src/cookies.txt
+        source: ./cookies.txt
