@@ -6,14 +6,8 @@ import tempfile
 
 app = Flask(__name__)
 
-# Cookie support
-temp_dir = tempfile.gettempdir()
-cookies_path = os.environ.get("YTDLP_COOKIES")
-cookie_file = os.path.join(temp_dir, "cookies.txt")
-
-if cookies_path:
-    with open(cookie_file, "w", encoding="utf-8") as f:
-        f.write(cookies_path)
+# Cookie support - Modificato per leggere direttamente il file 'cookies.txt'
+cookie_file = os.path.join(os.getcwd(), 'cookies.txt')
 
 # 🔍 SEARCH
 @app.route('/search', methods=['POST'])
@@ -58,7 +52,7 @@ def stream_audio():
     if not url:
         return {"error": "URL mancante"}, 400
 
-    filename = os.path.join(temp_dir, f"{uuid.uuid4()}.mp3")
+    filename = f"{uuid.uuid4()}.mp3"
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': filename,
@@ -90,7 +84,7 @@ def download_audio():
     if not url:
         return {"error": "URL mancante"}, 400
 
-    filename = os.path.join(temp_dir, f"{uuid.uuid4()}.mp3")
+    filename = f"{uuid.uuid4()}.mp3"
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': filename,
