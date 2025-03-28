@@ -2,23 +2,16 @@ from flask import Flask, request, send_file, jsonify
 import yt_dlp
 import uuid
 import os
-import tempfile
-import stat
 
 app = Flask(__name__)
 
-# 📂 Cookie support
-temp_dir = tempfile.gettempdir()
-cookies_path = os.path.join(os.getcwd(), "cookies.txt")
-cookie_file = os.path.join(temp_dir, "cookies.txt")
+# Indica il percorso del file cookies.txt
+cookie_file = "/opt/render/project/src/cookies.txt"
 
-# 🔑 Copia il file cookies.txt nel percorso temporaneo
-if os.path.exists(cookies_path):
-    with open(cookies_path, "r", encoding="utf-8") as source:
-        with open(cookie_file, "w", encoding="utf-8") as dest:
-            dest.write(source.read())
-    # 📝 Imposta i permessi per garantire l'accesso a tutti
-    os.chmod(cookie_file, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+if not os.path.exists(cookie_file):
+    print("❌ Il file 'cookies.txt' non è stato trovato. Controlla il percorso e riprova.")
+else:
+    print("✅ Il file 'cookies.txt' è stato trovato e verrà utilizzato.")
 
 # 🔍 SEARCH
 @app.route('/search', methods=['POST'])
@@ -54,104 +47,5 @@ def search():
     except Exception as e:
         return {"error": str(e)}, 500
 
-# ▶️ STREAM
-@app.route('/stream', methods=['POST'])
-def stream_audio():
-    data = request.get_json()
-    url = data.get("url")
-
-    if not url:
-        return {"error": "URL mancante"}, 400
-
-    filename = f"{uuid.uuid4()}.mp3"
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'outtmpl': filename,
-        'cookiefile': cookie_file,
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-        'quiet': True
-    }
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-        return send_file(filename, mimetype='audio/mpeg', as_attachment=False)
-    except Exception as e:
-        return {"error": str(e)}, 500
-    finally:
-        if os.path.exists(filename):
-            os.remove(filename)
-
-# ⬇️ DOWNLOAD
-@app.route('/download', methods=['POST'])
-def download_audio():
-    data = request.get_json()
-    url = data.get("url")
-
-    if not url:
-        return {"error": "URL mancante"}, 400
-
-    filename = f"{uuid.uuid4()}.mp3"
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'outtmpl': filename,
-        'cookiefile': cookie_file,
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-        'quiet': True
-    }
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-        return send_file(filename, as_attachment=True)
-    except Exception as e:
-        return {"error": str(e)}, 500
-    finally:
-        if os.path.exists(filename):
-            os.remove(filename)
-
-# 💽 PLAYLIST
-@app.route('/playlist', methods=['POST'])
-def playlist():
-    data = request.get_json()
-    url = data.get("url")
-
-    if not url:
-        return {"error": "URL mancante"}, 400
-
-    ydl_opts = {
-        'quiet': True,
-        'extract_flat': True,
-        'skip_download': True,
-        'cookiefile': cookie_file
-    }
-
-    tracks = []
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            if info.get('_type') == 'playlist':
-                for entry in info['entries']:
-                    tracks.append({
-                        "title": entry.get("title"),
-                        "url": f"https://www.youtube.com/watch?v={entry.get('id')}",
-                        "id": entry.get("id"),
-                        "thumbnail": entry.get("thumbnail")
-                    })
-            else:
-                return {"error": "Il link non è una playlist"}, 400
-        return jsonify(tracks)
-    except Exception as e:
-        return {"error": str(e)}, 500
-
-# Avvia il server su Render
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
