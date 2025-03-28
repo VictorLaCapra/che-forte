@@ -6,14 +6,8 @@ import tempfile
 
 app = Flask(__name__)
 
-# Cookie support
-temp_dir = tempfile.gettempdir()
-cookies_path = os.environ.get("YTDLP_COOKIES")
-cookie_file = os.path.join(temp_dir, "cookies.txt")
-
-if cookies_path:
-    with open(cookie_file, "w", encoding="utf-8") as f:
-        f.write(cookies_path)
+# Cookie support - adesso legge dal file 'cookies.txt' nel repository
+cookie_file = "cookies.txt"  # Assicurati che sia nella stessa cartella di questo file
 
 # 🔍 SEARCH
 @app.route('/search', methods=['POST'])
@@ -148,5 +142,4 @@ def playlist():
         return {"error": str(e)}, 500
 
 # Avvia il server su Render
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+app.run(host='0.0.0.0', port=10000)
