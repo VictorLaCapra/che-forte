@@ -2,8 +2,18 @@ from flask import Flask, request, send_file, jsonify
 import yt_dlp
 import uuid
 import os
+import tempfile
 
 app = Flask(__name__)
+
+# Cookie support
+temp_dir = tempfile.gettempdir()
+cookies_path = os.environ.get("YTDLP_COOKIES")
+cookie_file = os.path.join(temp_dir, "cookies.txt")
+
+if cookies_path:
+    with open(cookie_file, "w", encoding="utf-8") as f:
+        f.write(cookies_path)
 
 # 🔍 SEARCH
 @app.route('/search', methods=['POST'])
@@ -18,6 +28,7 @@ def search():
         'quiet': True,
         'extract_flat': True,
         'skip_download': True,
+        'cookiefile': cookie_file
     }
 
     results = []
@@ -51,6 +62,7 @@ def stream_audio():
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': filename,
+        'cookiefile': cookie_file,
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
@@ -82,6 +94,7 @@ def download_audio():
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': filename,
+        'cookiefile': cookie_file,
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
@@ -113,6 +126,7 @@ def playlist():
         'quiet': True,
         'extract_flat': True,
         'skip_download': True,
+        'cookiefile': cookie_file
     }
 
     tracks = []
@@ -135,3 +149,4 @@ def playlist():
 
 # Avvia il server su Render
 app.run(host='0.0.0.0', port=10000)
+
