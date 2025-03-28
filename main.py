@@ -3,11 +3,22 @@ import yt_dlp
 import uuid
 import os
 import tempfile
+import stat
 
 app = Flask(__name__)
 
-# Cookie support - Modificato per leggere direttamente il file 'cookies.txt'
-cookie_file = os.path.join(os.getcwd(), 'cookies.txt')
+# 📂 Cookie support
+temp_dir = tempfile.gettempdir()
+cookies_path = os.path.join(os.getcwd(), "cookies.txt")
+cookie_file = os.path.join(temp_dir, "cookies.txt")
+
+# 🔑 Copia il file cookies.txt nel percorso temporaneo
+if os.path.exists(cookies_path):
+    with open(cookies_path, "r", encoding="utf-8") as source:
+        with open(cookie_file, "w", encoding="utf-8") as dest:
+            dest.write(source.read())
+    # 📝 Imposta i permessi per garantire l'accesso a tutti
+    os.chmod(cookie_file, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
 
 # 🔍 SEARCH
 @app.route('/search', methods=['POST'])
@@ -107,7 +118,7 @@ def download_audio():
         if os.path.exists(filename):
             os.remove(filename)
 
-# 💽 PLAYLIST (elenco brani da una playlist YouTube)
+# 💽 PLAYLIST
 @app.route('/playlist', methods=['POST'])
 def playlist():
     data = request.get_json()
@@ -142,5 +153,5 @@ def playlist():
         return {"error": str(e)}, 500
 
 # Avvia il server su Render
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
