@@ -6,8 +6,14 @@ import tempfile
 
 app = Flask(__name__)
 
-# Cookie support - adesso legge dal file 'cookies.txt' nel repository
-cookie_file = "cookies.txt"  # Assicurati che sia nella stessa cartella di questo file
+# Cookie support
+temp_dir = tempfile.gettempdir()
+cookies_path = os.environ.get("YTDLP_COOKIES")
+cookie_file = os.path.join(temp_dir, "cookies.txt")
+
+if cookies_path:
+    with open(cookie_file, "w", encoding="utf-8") as f:
+        f.write(cookies_path)
 
 # 🔍 SEARCH
 @app.route('/search', methods=['POST'])
@@ -52,7 +58,7 @@ def stream_audio():
     if not url:
         return {"error": "URL mancante"}, 400
 
-    filename = f"{uuid.uuid4()}.mp3"
+    filename = os.path.join(temp_dir, f"{uuid.uuid4()}.mp3")
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': filename,
@@ -84,7 +90,7 @@ def download_audio():
     if not url:
         return {"error": "URL mancante"}, 400
 
-    filename = f"{uuid.uuid4()}.mp3"
+    filename = os.path.join(temp_dir, f"{uuid.uuid4()}.mp3")
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': filename,
@@ -142,4 +148,5 @@ def playlist():
         return {"error": str(e)}, 500
 
 # Avvia il server su Render
-app.run(host='0.0.0.0', port=10000)
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=10000)
